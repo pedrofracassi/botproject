@@ -25,15 +25,14 @@ async function initialize (token, redisClient) {
 
   logger.debug(`Got gateway address: ${url}`)
 
-  var lastSequence = null
-  var lastHeartbeat, lastAck
+  var lastSequence, sessionId, lastHeartbeatTime, lastAckTime, ws, heartbeatIntervalId
 
-  const ws = new WebSocket(`${url}/?v=6&encoding=json`)
+  connect()
 
   function initializeHeartbeats (interval) {
     logger.debug(`Initializing heartbeats. Sending one every ${interval}ms`)
     sendHeartbeat()
-    setInterval(() => {
+    heartbeatIntervalId = setInterval(() => {
       sendHeartbeat()
     }, interval)
   }
@@ -44,11 +43,13 @@ async function initialize (token, redisClient) {
   }
 
   function sendHeartbeat () {
-    logger.info('Sending heartbeat')
+    if (lastHeartbeatTime > lastAckTime) return reconnect()
+    logger.info('Sending heartbeat.')
     sendPacket({
       op: 1,
       d: lastSequence || null
     })
+    lastHeartbeatTime = Date.now()
   }
 
   function sendIdentify () {
@@ -75,6 +76,9 @@ async function initialize (token, redisClient) {
       case 1:
         sendHeartbeat()
         break
+      case 7:
+        reconnect()
+        break
       case 9:
         handleInvalidSession(packet)
         break
@@ -82,17 +86,66 @@ async function initialize (token, redisClient) {
         initializeHeartbeats(packet.d.heartbeat_interval)
         sendIdentify()
         break
+      case 11:
+        lastAckTime = Date.now()
     }
   }
 
-  function handlePresence (guild, presence) {
-    logger.debug(`Caching presence for ${presence.user.id} in ${guild}`)
-    redisClient.set(`presence:${guild}:${presence.user.id}`, presence.status)
+  function connect () {
+    ws = new WebSocket(`${url}/?v=6&encoding=json`)
+
+    ws.on('open', () => {
+      logger.log('Connection open!')
+
+      if (sessionId && lastSequence) {
+        logger.info('Sending resume packet')
+        sendPacket({
+          op: 6,
+          d: {
+            token,
+            session_id: sessionId,
+            seq: lastSequence
+          }
+        })
+      }
+    })
+  
+    ws.on('message', data => {
+      const packet = JSON.parse(data)
+      lastSequence = data.s
+      logger.debug('Inbound Packet', packet)
+      handlePacket(packet)
+    })
+  }
+
+  function reconnect () {
+    clearInterval(heartbeatIntervalId)
+    ws.close()
+    connect()
+  }
+
+  function handlePresence (id, presence) {
+    logger.debug(`Caching presence for ${presence.user.id} in ${id}`)
+    redisClient.hset(`guilds:${id}:presences`, presence.user.id, JSON.stringify(presence))
+  }
+
+  function handleGuildMember (id, member) {
+    logger.debug(`Caching guild member ${member.user.id} in ${id}`)
+    redisClient.hset(`guilds:${id}:members`, member.user.id, JSON.stringify(member))
+  }
+
+  function handleGuild (guild) {
+    guild.presences.forEach(presence => {
+      handlePresence(guild.id, presence)
+    })
+    guild.members.forEach(member => {
+      handleGuildMember(guild.id, member)
+    })
   }
 
   function handleInvalidSession (packet) {
     if (packet.d) {
-      // resume logic
+      reconnect()
     } else {
       logger.error('Invalid session')
       process.exit(1)
@@ -101,27 +154,17 @@ async function initialize (token, redisClient) {
 
   function handleDispatch (packet) {
     switch (packet.t) {
+      case 'READY':
+        sessionId = packet.d.session_id
+        break
       case 'PRESENCE_UPDATE':
         handlePresence(packet.d.guild_id, packet.d)
         break
       case 'GUILD_CREATE':
-        packet.d.presences.forEach(presence => {
-          handlePresence(packet.d.id, presence)
-        })
+        handleGuild(packet.d)
         break
     }
   }
-
-  ws.on('open', () => {
-    logger.log('Connection open!')
-  })
-
-  ws.on('message', data => {
-    const packet = JSON.parse(data)
-    lastSequence = data.s
-    logger.debug('Inbound Packet', packet)
-    handlePacket(packet)
-  })
 }
 
 logger.info('Connecting to Redis...')
