@@ -9,8 +9,8 @@ This is my attempt at writing a Discord bot from the ground up, so I can have mo
 - [x] Get the endpoint from the API
 - [x] Connect to the gateway
 - [x] Send heartbeats every X milliseconds
-- [ ] Check for ACKs between heartbeats and terminate the connection if need be
-- [ ] Resume connections if needed
-- [ ] Send heartbeats when the gateway requests them
+- [x] Check for ACKs between heartbeats and terminate the connection if need be
+- [x] Resume connections if needed
+- [x] Send heartbeats when the gateway requests them
 - [x] Identify
 - [ ] Listen for Dispatch events
