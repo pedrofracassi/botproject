@@ -71,10 +71,25 @@ async function initialize (token) {
       case 0:
         handleDispatch(packet)
         break
+      case 1:
+        sendHeartbeat()
+        break
+      case 9:
+        handleInvalidSession(packet)
+        break
       case 10:
         initializeHeartbeats(packet.d.heartbeat_interval)
         sendIdentify()
         break
+    }
+  }
+
+  function handleInvalidSession (packet) {
+    if (packet.d) {
+      // resume logic
+    } else {
+      logger.error('Invalid session')
+      process.exit(1)
     }
   }
 
