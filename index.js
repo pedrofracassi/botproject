@@ -1,5 +1,6 @@
 require('dotenv').config()
 
+const redis = require("redis")
 const WebSocket = require('ws')
 const axios = require('axios').default
 
@@ -10,7 +11,7 @@ if (!process.env.DISCORD_TOKEN) {
   process.exit(0)
 }
 
-async function initialize (token) {
+async function initialize (token, redisClient) {
   const httpClient = axios.create({
     baseURL: 'https://discord.com/api/v6',
     headers: {
@@ -84,6 +85,11 @@ async function initialize (token) {
     }
   }
 
+  function handlePresence (guild, presence) {
+    logger.debug(`Caching presence for ${presence.user.id} in ${guild}`)
+    redisClient.set(`presence:${guild}:${presence.user.id}`, presence.status)
+  }
+
   function handleInvalidSession (packet) {
     if (packet.d) {
       // resume logic
@@ -94,7 +100,16 @@ async function initialize (token) {
   }
 
   function handleDispatch (packet) {
-    // TODO: Handle dispatch events
+    switch (packet.t) {
+      case 'PRESENCE_UPDATE':
+        handlePresence(packet.d.guild_id, packet.d)
+        break
+      case 'GUILD_CREATE':
+        packet.d.presences.forEach(presence => {
+          handlePresence(packet.d.id, presence)
+        })
+        break
+    }
   }
 
   ws.on('open', () => {
@@ -109,4 +124,10 @@ async function initialize (token) {
   })
 }
 
-initialize(process.env.DISCORD_TOKEN)
+logger.info('Connecting to Redis...')
+const redisClient = redis.createClient()
+
+redisClient.on('ready', () => {
+  logger.info('Redis client ready. Starting gateway connection...')
+  initialize(process.env.DISCORD_TOKEN, redisClient)
+})
