@@ -79,7 +79,7 @@ async function initialize (token) {
   }
 
   function handleDispatch (packet) {
-    // TODO
+    // TODO: Handle dispatch events
   }
 
   ws.on('open', () => {
