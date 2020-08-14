@@ -1,9 +1,5 @@
 require('dotenv').config()
 
-const redis = require("redis")
-const WebSocket = require('ws')
-const axios = require('axios').default
-
 const GatewayManager = require('./GatewayManager')
 
 const logger = console
