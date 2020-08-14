@@ -1,5 +1,7 @@
 require('dotenv').config()
 
+const redis = require('redis')
+
 const GatewayManager = require('./GatewayManager')
 
 const logger = console
@@ -12,7 +14,7 @@ if (!process.env.DISCORD_TOKEN) {
 function initialize (token) {
   const redisClient = redis.createClient()
   redisClient.on('ready', () => {
-    const gateway = new GatewayManager({ token })
+    const gateway = new GatewayManager({ token, logger })
     gateway.connect()
 
     gateway.on('GUILD_CREATE', guild => {
