@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
+    "array-flat-polyfill": "^1.0.1",
     "axios": "^0.19.2",
     "dotenv": "^8.2.0",
     "redis": "^3.0.2",
@@ -14,7 +15,7 @@
     "standard": "^14.3.4"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/."
   },
   "author": "Pedro Fracassi",
   "license": "MIT",
