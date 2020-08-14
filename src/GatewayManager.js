@@ -1,8 +1,11 @@
 const WebSocket = require('ws')
 const axios = require('axios').default
 
-module.exports = class GatewayManager {
+const EventEmitter = require('events')
+
+module.exports = class GatewayManager extends EventEmitter {
   constructor ({ token, logger }) {
+    super()
     this.token = token
 
     this.logger = logger || console
@@ -15,11 +18,11 @@ module.exports = class GatewayManager {
     this.heartbeatIntervalId = null
   }
 
-  connect () {
+  async connect () {
     const httpClient = axios.create({
       baseURL: 'https://discord.com/api/v6',
       headers: {
-        'Authorization': `Bot ${token}`
+        'Authorization': `Bot ${this.token}`
       }
     })
 
@@ -120,5 +123,7 @@ module.exports = class GatewayManager {
 
   handleDispatch (packet) {
     if (packet.t === 'READY') this.sessionId = packet.d.session_id
+    this.emit('packet', packet)
+    this.emit(packet.t, packet.d)
   }
 }
