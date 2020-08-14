@@ -13,4 +13,4 @@ This is my attempt at writing a Discord bot from the ground up, so I can have mo
 - [x] Resume connections if needed
 - [x] Send heartbeats when the gateway requests them
 - [x] Identify
-- [ ] Listen for Dispatch events
+- [x] Listen for Dispatch events
