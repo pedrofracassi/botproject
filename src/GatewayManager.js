@@ -119,10 +119,6 @@ module.exports = class GatewayManager {
   }
 
   handleDispatch (packet) {
-    switch (packet.t) {
-      case 'READY':
-        this.sessionId = packet.d.session_id
-        break
-    }
+    if (packet.t === 'READY') this.sessionId = packet.d.session_id
   }
 }
